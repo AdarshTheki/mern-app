@@ -1,6 +1,6 @@
-import server from './app.js';
-import { logger } from './middlewares/logger.middleware.js';
-import { connectDB } from './config/connectDB.js';
+import server from './src/app.js';
+import { logger } from './src/middlewares/logger.middleware.js';
+import { connectDB } from './src/config/connectDB.js';
 
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || '0.0.0.0';

@@ -5,9 +5,9 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon --watch src -r dotenv/config --experimental-json-modules src/index.js",
-    "start": "node -r dotenv/config --experimental-json-modules src/index.js",
-    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,md,json}\" --config ./.prettierrc"
+    "dev": "nodemon --watch server -r dotenv/config --experimental-json-modules server/index.js",
+    "start": "node -r dotenv/config --experimental-json-modules server/index.js",
+    "format": "prettier --write \"server/**/*.{js,jsx,ts,tsx,css,md,json}\" --config ./.prettierrc"
   },
   "author": "Adarsh Verma",
   "license": "ISC",

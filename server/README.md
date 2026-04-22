@@ -1,4 +1,4 @@
-# Ecommerce API — MERN + AI + Cloudinary + Stripe
+# MERN + AI + Cloudinary + Stripe
 
 A production-ready REST API for product management with image uploads via Cloudinary, JWT authentication, AI Integration, Stripe live payment and role-based access control.
 

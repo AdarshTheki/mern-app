@@ -1,6 +1,6 @@
-## 🛍️ E-commerce Store – Cartify with AI Integration
+## 🛍️ MERN App with AI Integration
 
-Welcome to **Cartify**, a modern E-commerce platform built using the **MERN stack (MongoDB, Express.js, React, Node.js)** and **AI-powered features** for smarter shopping and streamlined operations.
+Welcome to modern E-commerce platform built using the **MERN stack (MongoDB, Express.js, React, Node.js)** and **AI-powered features** for smarter shopping and streamlined operations.
 
 ---
 
