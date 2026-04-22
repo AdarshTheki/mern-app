@@ -1,0 +1,7 @@
+node_modules
+.git
+tests
+docs
+*.log
+.env.sample
+.pretti*
