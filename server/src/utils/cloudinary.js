@@ -9,7 +9,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export const folder = 'cartify';
+export const folder = 'mern-app';
 
 // remove temp file after upload or delete
 const removeTempFile = (localPath = '') => {
@@ -21,7 +21,7 @@ const removeTempFile = (localPath = '') => {
 // Upload Single Image
 const uploadOnCloudinary = async (
   localFilePath = '',
-  folderName = 'cartify',
+  folderName = 'mern-app',
   options = {}
 ) => {
   if (!localFilePath) return null;
@@ -43,7 +43,7 @@ const uploadOnCloudinary = async (
 
 const uploadBase64OnCloudinary = async (
   dataUri,
-  folderName = 'cartify',
+  folderName = 'mern-app',
   options = {}
 ) => {
   if (!dataUri) return null;
@@ -62,7 +62,7 @@ const uploadBase64OnCloudinary = async (
 
 const uploadStreamOnCloudinary = async (
   readableStream,
-  folderName = 'cartify',
+  folderName = 'mern-app',
   options = {}
 ) => {
   return new Promise((resolve, reject) => {
@@ -79,7 +79,7 @@ const uploadStreamOnCloudinary = async (
 
 const uploadManyOnCloudinary = async (
   localPaths = [],
-  folderName = 'cartify',
+  folderName = 'mern-app',
   options = {}
 ) => {
   return Promise.all(

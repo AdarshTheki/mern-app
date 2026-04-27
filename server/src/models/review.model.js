@@ -5,18 +5,29 @@ const reviewSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
-    required: true,
+    required: [true, 'Product ID is required'],
   },
-  createdBy: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: [true, 'User ID is required'],
   },
-  reviewText: { type: String, required: true },
-  rating: { type: Number, min: 1, max: 5, required: true },
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  orderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Order',
+    required: [true, 'Order ID is required'],
+  },
+  comment: { type: String, required: [true, 'Comment is required'] },
+  rating: {
+    type: Number,
+    min: 0,
+    max: 5,
+    required: [true, 'Rating is required and must be between 0 and 5'],
+  },
   createdAt: { type: Date, default: Date.now },
 });
+
+reviewSchema.index({ productId: 1, userId: 1 });
 
 reviewSchema.plugin(mongoosePaginate);
 

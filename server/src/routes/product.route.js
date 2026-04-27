@@ -3,13 +3,12 @@ import { uploadImage } from '../middlewares/multer.middleware.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import {
   createProduct,
-  deleteProduct,
-  getAllProducts,
-  getProductById,
-  searchProducts,
   updateProduct,
-  adminGetAllProducts,
-  adminDeleteProduct,
+  deleteProduct,
+  getProductById,
+  getAllProducts, // (search with filters)
+  getProductsByVendor,
+  toggleProductActive,
 } from '../controllers/product.controller.js';
 
 const router = Router();
@@ -22,19 +21,18 @@ const uploadFields = uploadImage.fields([
 router
   .route('/')
   .get(getAllProducts)
-  .post(uploadFields, verifyJWT(['admin', 'seller']), createProduct);
-
-router.route('/search').get(searchProducts);
+  .post(uploadFields, verifyJWT(['admin', 'superadmin']), createProduct);
 
 router
   .route('/:productId')
   .get(getProductById)
-  .patch(uploadFields, verifyJWT(['admin', 'seller']), updateProduct)
-  .delete(verifyJWT(['admin', 'seller']), deleteProduct);
+  .patch(uploadFields, verifyJWT(['admin', 'superadmin']), updateProduct)
+  .delete(verifyJWT(['admin', 'superadmin']), deleteProduct);
 
-router.route('/admin').get(verifyJWT(['admin']), adminGetAllProducts);
 router
-  .route('/admin/:productId')
-  .delete(verifyJWT(['admin']), adminDeleteProduct);
+  .route('/:productId/status')
+  .patch(verifyJWT(['admin', 'superadmin']), toggleProductActive);
+
+router.route('/vendor/:vendorId').get(getProductsByVendor);
 
 export default router;

@@ -12,7 +12,7 @@ import {
 } from '../utils/cloudinary.js';
 
 const selectedProduct = {
-  title: 1,
+  name: 1,
   category: 1,
   brand: 1,
   status: 1,
@@ -26,15 +26,14 @@ const selectedProduct = {
 // @desc    Get all products with filters
 // @route   GET /api/v1/products
 // @access  Public
-export const getAllProducts = asyncHandler(async (req, res) => {
+const getAllProducts = asyncHandler(async (req, res) => {
   const {
-    title = '',
+    name = '',
     minPrice,
     maxPrice,
     minRating,
     maxRating,
-    sortBy = 'createdAt',
-    order = 'asc',
+    sort = '-createdAt',
     page = 1,
     limit = 10,
     category,
@@ -43,8 +42,8 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 
   const query = {};
 
-  if (title) {
-    query.title = { $regex: title, $options: 'i' };
+  if (name) {
+    query.name = { $regex: name, $options: 'i' };
   }
   if (category) {
     query.category = category;
@@ -66,14 +65,16 @@ export const getAllProducts = asyncHandler(async (req, res) => {
   const options = {
     page: parseInt(page),
     limit: parseInt(limit),
-    sort: { [sortBy]: order === 'asc' ? 1 : -1 },
+    sort: sort,
     select: Object.keys(selectedProduct).join(' '),
+    populate: [
+      { path: 'category', select: 'name' },
+      { path: 'brand', select: 'name' },
+      { path: 'vendorId', select: 'name' },
+    ],
   };
 
-  const products = await Product.paginate(
-    { ...query, isDeleted: false },
-    options
-  );
+  const products = await Product.paginate(query, options);
 
   return res
     .status(200)
@@ -83,20 +84,12 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 // @desc    Create a new product
 // @route   POST /api/v1/products
 // @access  Admin
-export const createProduct = asyncHandler(async (req, res) => {
-  const {
-    title,
-    category,
-    brand,
-    description,
-    price,
-    rating,
-    stock,
-    discount,
-  } = req.body;
+const createProduct = asyncHandler(async (req, res) => {
+  const { name, category, brand, description, price, rating, stock, discount } =
+    req.body;
 
   if (
-    !title ||
+    !name ||
     !category ||
     !brand ||
     !description ||
@@ -116,7 +109,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     : [];
 
   const product = await Product.create({
-    title,
+    name,
     category,
     brand,
     thumbnail,
@@ -126,7 +119,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     rating,
     stock,
     discount,
-    createdBy: req.user._id,
+    vendorId: req.user._id,
   });
 
   return res
@@ -137,14 +130,14 @@ export const createProduct = asyncHandler(async (req, res) => {
 // @desc    Update a product
 // @route   PUT /api/v1/products/:id
 // @access  Admin
-export const updateProduct = asyncHandler(async (req, res) => {
+const updateProduct = asyncHandler(async (req, res) => {
   const { productId } = req.params;
   if (!isValidObjectId(productId)) {
     throw new ApiError(400, 'Invalid product ID');
   }
 
   const {
-    title,
+    name,
     category,
     brand,
     description,
@@ -155,7 +148,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
     status,
   } = req.body;
 
-  const product = await Product.findById(productId);
+  const product = await Product.findOne(productId, { vendorId: req.user._id });
+
   if (!product) {
     throw new ApiError(404, 'Product not found');
   }
@@ -176,7 +170,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     );
   }
 
-  product.title = title || product.title;
+  product.name = name || product.name;
   product.category = category || product.category;
   product.brand = brand || product.brand;
   product.description = description || product.description;
@@ -193,66 +187,21 @@ export const updateProduct = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, product, 'Product updated successfully'));
 });
 
-// @desc    Delete a product
-// @route   DELETE /api/v1/products/:id
-// @access  Admin
-export const deleteProduct = asyncHandler(async (req, res) => {
-  const { productId } = req.params;
-  if (!isValidObjectId(productId)) {
-    throw new ApiError(400, 'Invalid product ID');
-  }
-
-  const product = await Product.findByIdAndUpdate(
-    productId,
-    { isDeleted: true },
-    { new: true }
-  );
-  if (!product) {
-    throw new ApiError(404, 'Product not found');
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, product, 'Product deleted successfully'));
-});
-
-// @desc    Search products by title, category, or brand
-// @route   GET /api/v1/products/search
-// @access  Public
-export const searchProducts = asyncHandler(async (req, res) => {
-  const { q } = req.query;
-
-  const regexQuery = {
-    $or: [
-      { title: { $regex: q, $options: 'i' } },
-      { brand: { $regex: q, $options: 'i' } },
-      { category: { $regex: q, $options: 'i' } },
-    ],
-  };
-
-  const products = await Product.find(regexQuery)
-    .select(selectedProduct)
-    .limit(10);
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, products, 'Products searched successfully'));
-});
-
 // @desc    Get single product by ID
 // @route   GET /api/v1/products/:productId
 // @access  Public
-export const getProductById = asyncHandler(async (req, res) => {
+const getProductById = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
   if (!isValidObjectId(productId)) {
     throw new ApiError(400, 'Invalid product ID');
   }
 
-  const product = await Product.findById(productId).populate(
-    'createdBy',
-    'fullName email avatar'
-  );
+  const product = await Product.findById(productId).populate([
+    { path: 'category', select: 'name' },
+    { path: 'brand', select: 'name' },
+    { path: 'vendorId', select: 'name' },
+  ]);
 
   if (!product) {
     throw new ApiError(404, 'Product not found');
@@ -263,63 +212,13 @@ export const getProductById = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, product, 'Product retrieved successfully'));
 });
 
-// @desc    Admin - Get all products with filters (including deleted)
-// @route   GET /api/v1/admin/products
-// @access  Admin
-export const adminGetAllProducts = asyncHandler(async (req, res) => {
-  const {
-    title = '',
-    minPrice,
-    maxPrice,
-    minRating,
-    maxRating,
-    sort = '-createdAt',
-    page = 1,
-    limit = 10,
-    category,
-    brand,
-  } = req.query;
-
-  const query = {};
-
-  if (title) query.title = { $regex: title, $options: 'i' };
-  if (category) query.category = category;
-  if (brand) query.brand = brand;
-  if (minPrice || maxPrice) {
-    query.price = {};
-    if (minPrice) query.price.$gte = Number(minPrice);
-    if (maxPrice) query.price.$lte = Number(maxPrice);
-  }
-  if (minRating || maxRating) {
-    query.rating = {};
-    if (minRating) query.rating.$gte = Number(minRating);
-    if (maxRating) query.rating.$lte = Number(maxRating);
-  }
-
-  const products = await Product.paginate(query, {
-    page: parseInt(page),
-    limit: parseInt(limit),
-    sort,
-    populate: { path: 'createdBy', select: 'fullName email avatar' },
-  });
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, products, 'Products retrieved successfully'));
-});
-
-// @desc    Admin - Hard delete a product with destroying images
-// @route   DELETE /api/v1/admin/products/:productId
-// @access  Admin
-export const adminDeleteProduct = asyncHandler(async (req, res) => {
+const deleteProduct = asyncHandler(async (req, res) => {
   const { productId } = req.params;
   if (!isValidObjectId(productId)) {
     throw new ApiError(400, 'Invalid product ID');
   }
 
-  const product = await Product.findByIdAndDelete(productId, {
-    isDeleted: true,
-  });
+  const product = await Product.findByIdAndDelete(productId);
 
   if (!product) {
     throw new ApiError(404, 'Product not found');
@@ -337,3 +236,95 @@ export const adminDeleteProduct = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, 'Product deleted successfully'));
 });
+
+const getProductsByVendor = asyncHandler(async (req, res) => {
+  const { vendorId } = req.params;
+
+  if (!isValidObjectId(vendorId)) {
+    throw new ApiError(400, 'Invalid vendor ID');
+  }
+
+  const {
+    name = '',
+    minPrice,
+    maxPrice,
+    minRating,
+    maxRating,
+    sort = '-createdAt',
+    page = 1,
+    limit = 10,
+    category,
+    brand,
+  } = req.query;
+
+  const query = {
+    vendorId,
+  };
+
+  if (name) {
+    query.name = { $regex: name, $options: 'i' };
+  }
+  if (category) {
+    query.category = category;
+  }
+  if (brand) {
+    query.brand = brand;
+  }
+  if (minPrice || maxPrice) {
+    query.price = {};
+    if (minPrice) query.price.$gte = Number(minPrice);
+    if (maxPrice) query.price.$lte = Number(maxPrice);
+  }
+  if (minRating || maxRating) {
+    query.rating = {};
+    if (minRating) query.rating.$gte = Number(minRating);
+    if (maxRating) query.rating.$lte = Number(maxRating);
+  }
+
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+    sort: sort,
+    populate: [
+      { path: 'category', select: 'name' },
+      { path: 'brand', select: 'name' },
+      { path: 'vendorId', select: 'name' },
+    ],
+  };
+
+  const products = await Product.paginate(query, options);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, products, 'Products retrieved successfully'));
+});
+
+const toggleProductActive = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  if (!isValidObjectId(productId)) {
+    throw new ApiError(400, 'Invalid product ID');
+  }
+
+  const product = await Product.findById(productId);
+
+  if (!product) {
+    throw new ApiError(404, 'Product not found');
+  }
+
+  product.isActive = !product.isActive;
+  await product.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, product, 'Product status toggled successfully'));
+});
+
+export {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getProductById,
+  getAllProducts, // (search with filters)
+  getProductsByVendor,
+  toggleProductActive,
+};

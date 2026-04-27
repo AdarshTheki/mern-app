@@ -24,9 +24,9 @@ const cookiePayload = {
 const selectedUser = {
   email: 1,
   role: 1,
-  status: 1,
-  phoneNumber: 1,
-  fullName: 1,
+  isActive: 1,
+  phone: 1,
+  name: 1,
   avatar: 1,
   loginType: 1,
   favorite: 1,
@@ -38,27 +38,26 @@ const selectedUser = {
 // @desc    Get all users (admin only)
 // @route   GET /api/v1/users
 // @access  Admin
-export const getAllUserByAdmin = asyncHandler(async (req, res) => {
+const getAllUsers = asyncHandler(async (req, res) => {
   const {
     page = 1,
     limit = 10,
     search = '',
-    sort = 'updatedAt',
-    order = 'asc',
-    status = '',
+    sort = '-updatedAt',
     select = '',
+    isActive = 'true',
   } = req.query;
 
   const query = {
     role: { $ne: 'admin' },
-    fullName: { $regex: search, $options: 'i' },
-    status: { $in: status ? [status] : ['active', 'inactive'] },
+    name: { $regex: search, $options: 'i' },
+    isActive: isActive === 'true',
   };
 
   const options = {
     page: parseInt(page),
     limit: parseInt(limit),
-    sort: { [sort]: order === 'asc' ? 1 : -1 },
+    sort: sort,
     select: select
       ? select?.split(',').join(' ')
       : Object.keys(selectedUser).join(' '),
@@ -74,7 +73,7 @@ export const getAllUserByAdmin = asyncHandler(async (req, res) => {
 // @desc    Get single user by ID (admin only)
 // @route   GET /api/v1/users/:id
 // @access  Admin
-export const getUserIdByAdmin = asyncHandler(async (req, res) => {
+const getUserById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!isValidObjectId(id)) {
     throw new ApiError(400, 'Invalid user ID');
@@ -91,77 +90,55 @@ export const getUserIdByAdmin = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, 'User retrieved successfully'));
 });
 
-// @desc    Create a new user (admin only)
-// @route   POST /api/v1/users
-// @access  Admin
-export const createUserByAdmin = asyncHandler(async (req, res) => {
-  const { phoneNumber, email, status, role, password, fullName } = req.body;
-
-  if (!email || !password || !fullName) {
-    throw new ApiError(400, 'Email, password, and full name are required');
-  }
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ApiError(409, 'User with this email already exists');
-  }
-
-  const user = await User.create({
-    phoneNumber,
-    email,
-    status,
-    role,
-    password,
-    fullName,
-  });
-
-  const createdUser = await User.findById(user?._id).select(selectedUser);
-
-  if (!createdUser) {
-    throw new ApiError(500, 'User creation failed');
-  }
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, createdUser, 'User created successfully'));
-});
-
 // @desc    Update user details (admin only)
 // @route   PUT /api/v1/users/:id
 // @access  Admin
-export const updateUserByAdmin = asyncHandler(async (req, res) => {
-  const { phoneNumber, email, status, role, fullName } = req.body;
+const updateUserProfile = asyncHandler(async (req, res) => {
+  const { phone, email, role, name, avatar } = req.body;
+  const avatarPath = req.files?.avatar?.[0]?.path;
+
   const { id } = req.params;
   if (!isValidObjectId(id)) {
     throw new ApiError(400, 'Invalid user ID');
   }
 
-  const user = await User.findById(id);
+  const user = await User.findById(id).select(selectedUser);
+
   if (!user) {
     throw new ApiError(404, 'User not found');
   }
 
-  user.phoneNumber = phoneNumber || user.phoneNumber;
+  if (avatarPath) {
+    if (user.avatar) {
+      await deleteOnCloudinary(extractPublicId(user.avatar));
+    }
+    const uploadResult = await uploadOnCloudinary(avatarPath);
+    user.avatar = uploadResult;
+  }
+
+  if (avatar === 'remove') {
+    if (user.avatar) {
+      await deleteOnCloudinary(extractPublicId(user.avatar));
+      user.avatar = undefined;
+    }
+  }
+
+  user.phone = phone || user.phone;
   user.email = email || user.email;
-  user.status = status || user.status;
   user.role = role || user.role;
-  user.fullName = fullName || user.fullName;
+  user.name = name || user.name;
 
   await user.save({ validateBeforeSave: false });
 
-  const newUser = await User.findById(user._id).select(selectedUser);
-
-  if (!newUser) throw new ApiError(404, 'updated user not found!');
-
   return res
     .status(200)
-    .json(new ApiResponse(200, newUser, 'User updated successfully'));
+    .json(new ApiResponse(200, user, 'User updated successfully'));
 });
 
 // @desc    Delete a user (admin only)
 // @route   DELETE /api/v1/users/:id
 // @access  Admin
-export const deleteUserByAdmin = asyncHandler(async (req, res) => {
+const deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!isValidObjectId(id)) {
     throw new ApiError(400, 'Invalid user ID');
@@ -178,10 +155,29 @@ export const deleteUserByAdmin = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, 'User deleted successfully'));
 });
 
+// @desc    Deactivate a user account (admin only)
+// @route   PATCH /api/v1/users/:id/deactivate
+// @access  Admin
+const deactivateAccount = asyncHandler(async (req, res) => {
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { isActive: false },
+    { new: true }
+  );
+
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, 'User deactivated successfully'));
+});
+
 // @desc    Get current logged-in user
 // @route   GET /api/v1/users/current
 // @access  Private
-export const getCurrentUser = asyncHandler(async (req, res) => {
+const getCurrentUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select(selectedUser);
 
   if (!user) {
@@ -196,10 +192,10 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 // @desc    Register a new user
 // @route   POST /api/v1/users/register
 // @access  Public
-export const signUp = asyncHandler(async (req, res) => {
-  const { status, role, email, password, fullName } = req.body;
+const registerUser = asyncHandler(async (req, res) => {
+  const { isActive, role, email, password, name } = req.body;
 
-  if ([email, password, fullName].some((field) => !field.trim())) {
+  if ([email, password, name].some((field) => !field.trim())) {
     throw new ApiError(400, 'All required fields are missing');
   }
 
@@ -212,8 +208,8 @@ export const signUp = asyncHandler(async (req, res) => {
     email,
     password,
     role: role || 'customer',
-    fullName,
-    status: status || 'active',
+    name,
+    isActive: isActive || true,
   });
 
   const user = await User.findById(newUser._id);
@@ -231,7 +227,7 @@ export const signUp = asyncHandler(async (req, res) => {
     to: user.email,
     subject: 'Please verify your email',
     mailgenContent: emailVerificationMailgenContent(
-      user.fullName,
+      user.name,
       `${process.env.CLIENT_REDIRECT_URL}/verify-email/${unHashedToken}`
     ),
   }).catch((err) => {
@@ -251,7 +247,7 @@ export const signUp = asyncHandler(async (req, res) => {
 // @desc    Authenticate user and get token
 // @route   POST /api/v1/users/login
 // @access  Public
-export const signIn = asyncHandler(async (req, res) => {
+const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -294,9 +290,9 @@ export const signIn = asyncHandler(async (req, res) => {
 });
 
 // @desc    Log out current user
-// @route   POST /api/v1/users/logout
+// @route   POST /api/v1/users/logoutUser
 // @access  Private
-export const logout = asyncHandler(async (req, res) => {
+const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     { $unset: { refreshToken: 1 } },
@@ -313,7 +309,7 @@ export const logout = asyncHandler(async (req, res) => {
 // @desc    Change current user's password
 // @route   PUT /api/v1/users/change-password
 // @access  Private
-export const changeCurrentPassword = asyncHandler(async (req, res) => {
+const changePassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
 
   if (!oldPassword || !newPassword) {
@@ -350,7 +346,7 @@ export const changeCurrentPassword = asyncHandler(async (req, res) => {
 // @desc    resend verification email
 // @route   POST api/v1//user/resend-verify-email
 // @access  Private verify user
-export const resendVerificationEmail = asyncHandler(async (req, res) => {
+const resendEmailVerification = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user?._id);
   if (!user) throw new ApiError(400, 'User not found');
 
@@ -369,7 +365,7 @@ export const resendVerificationEmail = asyncHandler(async (req, res) => {
     to: user.email,
     subject: 'Please verify your email',
     mailgenContent: emailVerificationMailgenContent(
-      user.fullName,
+      user.name,
       `${process.env.CLIENT_REDIRECT_URL}/verify-email/${unHashedToken}`
     ),
   });
@@ -388,7 +384,7 @@ export const resendVerificationEmail = asyncHandler(async (req, res) => {
 // @desc    verification email
 // @route   GET api/v1//user/verify-email/:verificationToken
 // @access  Public unVerify user
-export const verifyEmail = asyncHandler(async (req, res) => {
+const verifyEmail = asyncHandler(async (req, res) => {
   const { verificationToken } = req.params;
   if (!verificationToken)
     throw new ApiError(400, 'Email verification token is missing');
@@ -422,7 +418,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 // @desc    reset forgotten password with used of reset token
 // @route   POST api/v1//user/reset-password/:resetToken
 // @access  Public
-export const resetPassword = asyncHandler(async (req, res) => {
+const resetPassword = asyncHandler(async (req, res) => {
   const { resetToken } = req.params;
   const { newPassword } = req.body;
 
@@ -454,7 +450,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
 // @desc    forgot password request on email
 // @route   POST /api/v1/user/forgot-password
 // @access  Public
-export const forgotPasswordRequest = asyncHandler(async (req, res) => {
+const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
   const user = await User.findOne({ email });
@@ -474,7 +470,7 @@ export const forgotPasswordRequest = asyncHandler(async (req, res) => {
     to: user.email,
     subject: 'Password reset request',
     mailgenContent: forgotPasswordMailgenContent(
-      user.fullName,
+      user.name,
       `${process.env.CLIENT_REDIRECT_URL}/reset-password/${unHashedToken}`
     ),
   });
@@ -493,7 +489,7 @@ export const forgotPasswordRequest = asyncHandler(async (req, res) => {
 // @desc    Assign role on user Admin
 // @route   POST /api/v1/user/assign-role/:userId
 // @access  Admin
-export const assignRole = asyncHandler(async (req, res) => {
+const updateUserRole = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { role } = req.body;
   const user = await User.findById(userId);
@@ -509,31 +505,10 @@ export const assignRole = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, 'Role changed for the user'));
 });
 
-// @desc    Update current user's profile
-// @route   PUT /api/v1/users/profile
-// @access  Private
-export const updateUserProfile = asyncHandler(async (req, res) => {
-  const { phoneNumber, fullName } = req.body;
-
-  const user = await User.findById(req.user?._id).select(selectedUser);
-  if (!user) {
-    throw new ApiError(404, 'User not found');
-  }
-
-  user.phoneNumber = phoneNumber || user.phoneNumber;
-  user.fullName = fullName || user.fullName;
-
-  await user.save({ validateBeforeSave: false });
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, user, 'User profile updated successfully'));
-});
-
 // @desc    Refresh access token
 // @route   POST /api/v1/users/refresh-token
 // @access  Public
-export const refreshToken = asyncHandler(async (req, res) => {
+const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken = req.cookies?.refreshToken;
 
   if (!incomingRefreshToken) {
@@ -580,108 +555,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Update user avatar
-// @route   PUT /api/v1/users/avatar
-// @access  Private
-export const updateAvatar = asyncHandler(async (req, res) => {
-  const filePath = req?.file?.path;
-  if (!filePath) {
-    throw new ApiError(400, 'No avatar file provided');
-  }
-
-  const avatar = await uploadOnCloudinary(filePath);
-  if (avatar) {
-    await deleteOnCloudinary(extractPublicId(req?.user?.avatar));
-  }
-
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: { avatar } },
-    { new: true }
-  ).select(Object.keys(selectedUser).join(' '));
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, user, 'Avatar updated successfully'));
-});
-
-// @desc    Remove user avatar
-// @route   DELETE /api/v1/users/avatar
-// @access  Private
-export const removeAvatar = asyncHandler(async (req, res) => {
-  const publicId = req?.user?.avatar?.split('/')[7]?.split('.')[0];
-  if (!publicId) {
-    throw new ApiError(404, 'Avatar not found');
-  }
-
-  const removeResult = await deleteOnCloudinary(
-    extractPublicId(req?.user?.avatar)
-  );
-  if (!removeResult) {
-    throw new ApiError(500, 'Failed to remove avatar from cloudinary');
-  }
-
-  await User.findByIdAndUpdate(
-    req.user._id,
-    { $unset: { avatar: 1 } },
-    { new: true }
-  );
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, {}, 'Avatar removed successfully'));
-});
-
-// @desc    Toggle product in user's favorites
-// @route   POST /api/v1/users/favorites/:id
-// @access  Private
-export const toggleFavorite = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  const { id } = req.params;
-
-  if (!isValidObjectId(id)) {
-    throw new ApiError(400, 'Invalid product ID');
-  }
-
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new ApiError(404, 'User not found');
-  }
-
-  const isFavorite = user.favorite.includes(id);
-
-  const updatedUser = await User.findByIdAndUpdate(
-    userId,
-    {
-      [isFavorite ? '$pull' : '$addToSet']: { favorite: id },
-    },
-    { new: true }
-  );
-
-  return res.status(200).json(updatedUser.favorite);
-});
-
-// @desc    Get all favorite products for current user
-// @route   GET /api/v1/users/favorites
-// @access  Private
-export const getFavorites = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).populate('favorite');
-  if (!user) {
-    throw new ApiError(404, 'User not found');
-  }
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        user.favorite,
-        'Favorite products retrieved successfully'
-      )
-    );
-});
-
-export const handleSocialLogin = asyncHandler(async (req, res) => {
+const handleSocialLogin = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user?._id);
 
   if (!user) throw new ApiError(404, 'User does not exist');
@@ -700,3 +574,26 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
       `${process.env.CLIENT_REDIRECT_URL}/login?accessToken=${accessToken}&refreshToken=${refreshToken}`
     );
 });
+
+export {
+  // admin
+  getAllUsers,
+  getUserById,
+  deleteUser,
+  updateUserRole,
+
+  // login user
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  verifyEmail,
+  resendEmailVerification,
+  changePassword,
+  resetPassword,
+  forgotPassword,
+  getCurrentUser,
+  updateUserProfile,
+  deactivateAccount,
+  handleSocialLogin,
+};

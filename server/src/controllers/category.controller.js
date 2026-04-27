@@ -12,48 +12,20 @@ import {
 // @desc    Get all categories
 // @route   GET /api/v1/categories
 // @access  Public
-export const getAllCategories = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 10,
-    sort = 'title',
-    order = 'asc',
-    title = '',
-    select = '',
-  } = req.query;
+const getAllCategories = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, sort = 'name', name = '' } = req.query;
 
-  const options = {
-    page,
-    limit,
-    sort: { [sort]: order === 'asc' ? 1 : -1 },
-    select: select
-      ? select.split(',').join(' ')
-      : 'title status thumbnail createdBy',
-  };
+  const query = { name: { $regex: name, $options: 'i' } };
 
-  const query = { title: { $regex: title, $options: 'i' } };
+  const categories = await Category.paginate(query, { page, limit, sort });
 
-  const categories = await Category.paginate(query, options);
-
-  return res.status(200).json(categories);
-});
-
-// @desc    Get category list
-// @route   GET /api/v1/categories/list
-// @access  Public
-export const getCategoryList = asyncHandler(async (req, res) => {
-  const categories = await Category.find().distinct('title');
   return res
     .status(200)
     .json(
-      new ApiResponse(200, categories, 'Category list retrieved successfully')
+      new ApiResponse(200, categories, 'Categories retrieved successfully')
     );
 });
-
-// @desc    Get category by ID
-// @route   GET /api/v1/categories/:id
-// @access  Public
-export const getCategoryById = asyncHandler(async (req, res) => {
+const getCategoryById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!isValidObjectId(id)) {
     throw new ApiError(400, 'Invalid category ID');
@@ -72,11 +44,11 @@ export const getCategoryById = asyncHandler(async (req, res) => {
 // @desc    Create a new category
 // @route   POST /api/v1/categories
 // @access  Admin
-export const createCategory = asyncHandler(async (req, res) => {
+const createCategory = asyncHandler(async (req, res) => {
   const filePath = req?.file?.path;
-  const { title, status, description } = req.body;
+  const { name, description, depth, path } = req.body;
 
-  if (!title || !filePath || !status || !description) {
+  if (!name || !filePath || !description) {
     throw new ApiError(400, 'All fields are required');
   }
 
@@ -86,11 +58,11 @@ export const createCategory = asyncHandler(async (req, res) => {
   }
 
   const category = await Category.create({
-    title,
-    status,
+    name,
     thumbnail,
     description,
-    createdBy: req.user._id,
+    depth,
+    path,
   });
 
   return res
@@ -101,13 +73,13 @@ export const createCategory = asyncHandler(async (req, res) => {
 // @desc    Update a category
 // @route   PUT /api/v1/categories/:id
 // @access  Admin
-export const updateCategory = asyncHandler(async (req, res) => {
+const updateCategory = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!isValidObjectId(id)) {
     throw new ApiError(400, 'Invalid category ID');
   }
 
-  const { title, status, description } = req.body;
+  const { name, description, depth, path } = req.body;
   const filePath = req?.file?.path;
 
   const category = await Category.findById(id);
@@ -121,10 +93,11 @@ export const updateCategory = asyncHandler(async (req, res) => {
     await deleteOnCloudinary(extractPublicId(category.thumbnail));
   }
 
-  category.title = title || category.title;
-  category.status = status || category.status;
+  category.name = name || category.name;
   category.description = description || category.description;
   category.thumbnail = thumbnail || category.thumbnail;
+  category.depth = depth || category.depth;
+  category.path = path || category.path;
 
   await category.save({ validateBeforeSave: false });
 
@@ -136,22 +109,30 @@ export const updateCategory = asyncHandler(async (req, res) => {
 // @desc    Delete a category
 // @route   DELETE /api/v1/categories/:id
 // @access  Admin
-export const deleteCategory = asyncHandler(async (req, res) => {
+const deleteCategory = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!isValidObjectId(id)) {
     throw new ApiError(400, 'Invalid category ID');
   }
 
-  const category = await Category.findByIdAndDelete(id);
+  const category = await Category.findByIdAndUpdate(
+    id,
+    { isActive: false },
+    { new: true }
+  );
   if (!category) {
     throw new ApiError(404, 'Category not found');
-  }
-
-  if (category.thumbnail) {
-    await deleteOnCloudinary(extractPublicId(category.thumbnail));
   }
 
   return res
     .status(200)
     .json(new ApiResponse(200, category, 'Category deleted successfully'));
 });
+
+export {
+  getAllCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+};

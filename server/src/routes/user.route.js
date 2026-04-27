@@ -2,34 +2,32 @@ import { Router } from 'express';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { upload } from '../middlewares/multer.middleware.js';
 import {
-  getCurrentUser,
-  getFavorites,
-  toggleFavorite,
-  logout,
-  signIn,
-  signUp,
-  refreshToken,
-  removeAvatar,
-  updateAvatar,
-  handleSocialLogin,
-  changeCurrentPassword,
-  resendVerificationEmail,
+  // admin
+  getAllUsers,
+  getUserById,
+  deleteUser,
+  updateUserRole,
+
+  // login user
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
   verifyEmail,
-  forgotPasswordRequest,
+  resendEmailVerification,
+  changePassword,
   resetPassword,
+  forgotPassword,
+  getCurrentUser,
   updateUserProfile,
-  assignRole,
-  updateUserByAdmin,
-  getUserIdByAdmin,
-  deleteUserByAdmin,
-  createUserByAdmin,
-  getAllUserByAdmin,
+  deactivateAccount,
+  handleSocialLogin,
 } from '../controllers/user.controller.js';
 import passport from 'passport';
 
 const router = Router();
 
-// SOS
+// SOS - Social login routes
 router.get(
   '/google',
   passport.authenticate('google', { scope: ['profile', 'email'] }),
@@ -50,40 +48,27 @@ router
   .route('/github/callback')
   .get(passport.authenticate('github'), handleSocialLogin);
 
-// Unauthenticated routes
-router.post('/sign-up', signUp);
-router.post('/sign-in', signIn);
-router.post('/refresh-token', refreshToken);
-
 // User Permissions
-router.route('/admin').get(verifyJWT(), getAllUserByAdmin);
-router.route('/admin').post(verifyJWT(['admin']), createUserByAdmin);
+router.route('/admin').get(verifyJWT(['admin']), getAllUsers);
+router.route('/admin/role/:userId').post(verifyJWT(['admin'], updateUserRole));
 router
   .route('/admin/:id')
-  .get(verifyJWT(), getUserIdByAdmin)
-  .patch(verifyJWT(['admin']), updateUserByAdmin)
-  .delete(verifyJWT(['admin']), deleteUserByAdmin);
+  .get(verifyJWT(['admin']), getUserById)
+  .delete(verifyJWT(['admin']), deleteUser);
 
-router.route('/resend-verify-email').get(verifyJWT(), resendVerificationEmail);
-router.route('/verify-email/:verificationToken').get(verifyEmail);
-router.route('/change-password').post(verifyJWT(), changeCurrentPassword);
-router.route('/reset-password/:resetToken').post(resetPassword);
-router.route('/forgot-password').post(forgotPasswordRequest);
-router.route('/assign-role/:userId').post(verifyJWT(['admin'], assignRole));
+router.post('/refresh-token', refreshAccessToken);
+router.post('/reset-password/:resetToken', resetPassword);
+router.post('/forgot-password', forgotPassword);
+router.get('/resend-email-verification', verifyJWT(), resendEmailVerification);
+router.get('/verify-email/:verificationToken', verifyEmail);
+router.post('/change-password', verifyJWT(), changePassword);
 
-// Authenticated routes
-router.use(verifyJWT());
+router.post('/register', registerUser);
+router.post('/login', loginUser);
+router.post('/logout', verifyJWT(), logoutUser);
 
-router.get('/current-user', getCurrentUser);
-router.post('/logout', logout);
-router.patch('/update', updateUserProfile);
-
-router
-  .route('/avatar')
-  .post(upload.single('avatar'), updateAvatar)
-  .delete(removeAvatar);
-
-router.route('/favorite').get(getFavorites);
-router.route('/favorite/:id').patch(toggleFavorite);
+router.get('/', verifyJWT(), getCurrentUser);
+router.delete('/', verifyJWT(), deactivateAccount);
+router.patch('/', verifyJWT(), upload.single('avatar'), updateUserProfile);
 
 export default router;

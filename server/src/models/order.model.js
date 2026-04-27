@@ -1,8 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
-export const orderStatus = ['pending', 'shipped', 'delivered', 'cancelled'];
-
 const orderSchema = new Schema(
   {
     userId: {
@@ -12,7 +10,7 @@ const orderSchema = new Schema(
     },
     status: {
       type: String,
-      enum: orderStatus,
+      enum: ['pending', 'shipped', 'delivered', 'cancelled'],
       default: 'pending',
     },
     addressId: {
@@ -20,30 +18,12 @@ const orderSchema = new Schema(
       ref: 'Address',
       required: true,
     },
-    items: [
-      {
-        productId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'Product',
-          required: true,
-        },
-        quantity: {
-          type: Number,
-          required: true,
-          min: 1,
-          max: 5,
-        },
-      },
-    ],
-    paymentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Payment',
-      required: true,
-    },
-    totalPrice: Number,
+    totalPrice: { type: Number, required: true },
   },
   { timestamps: true }
 );
+
+orderSchema.index({ userId: 1, createdAt: -1 });
 
 orderSchema.plugin(mongoosePaginate);
 

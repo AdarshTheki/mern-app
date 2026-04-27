@@ -1,25 +1,30 @@
 import mongoose, { Schema } from 'mongoose';
+import mongoosePaginate from 'mongoose-paginate-v2';
 
 const addressSchema = new Schema({
-  title: { type: String, required: true },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
   },
+  name: { type: String, required: true },
   isDefault: { type: Boolean, default: false },
-  addressLine1: { type: String, required: true },
+  line1: { type: String, required: true },
+  line2: String,
   city: { type: String, required: true },
   landmark: { type: String, required: true },
-  postalCode: { type: String, required: true },
+  pincode: { type: String, required: true },
   country: { type: String, required: true },
-  phoneNumber: {
+  phone: {
     type: Number,
     required: true,
     min: 1000000000,
     max: 9999999999,
   },
-  addressLine2: String,
 });
+
+addressSchema.plugin(mongoosePaginate);
+
+addressSchema.index({ userId: 1 });
 
 export const Address = mongoose.model('Address', addressSchema);

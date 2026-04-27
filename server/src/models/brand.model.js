@@ -3,39 +3,40 @@ import mongoosePaginate from 'mongoose-paginate-v2';
 
 const brandSchema = new Schema(
   {
-    status: {
-      type: String,
-      enum: ['active', 'inactive'],
-      default: 'active',
-    },
-    title: {
+    name: {
       type: String,
       required: true,
-      index: true,
       trim: true,
-      minlength: 3,
-      maxlength: 200,
-      required: true,
     },
     thumbnail: String,
     description: {
       type: String,
-      minlength: 100,
-      maxlength: 1000,
       trim: true,
       required: true,
     },
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
+    slug: { type: String, unique: true },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }
 );
 
-brandSchema.index({ title: 'text' });
+brandSchema.index({ name: 1, slug: 1 });
 
 brandSchema.plugin(mongoosePaginate);
+
+brandSchema.pre('save', function (next) {
+  if (this.isModified('name')) {
+    this.slug = this.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+  next();
+});
 
 export const Brand = mongoose.model('Brand', brandSchema);

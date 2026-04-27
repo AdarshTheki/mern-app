@@ -4,54 +4,38 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-export const loginTypeEnum = ['EMAIL_PASSWORD', 'GITHUB', 'GOOGLE'];
-
-export const loginStatusEnum = ['active', 'inactive'];
-
-export const loginRoleEnum = ['customer', 'admin', 'seller', 'user'];
-
 const userSchema = new Schema(
   {
-    fullName: {
+    name: {
       type: String,
-      required: [true, 'FullName is required'],
-      trim: true,
-      maxlength: [50, 'FullName cannot exceed 50 characters'],
+      required: [true, 'Name is required'],
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
       unique: true,
-      lowercase: true,
-      trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
+      required: [true, 'Email is required'],
     },
     loginType: {
       type: String,
-      enum: loginTypeEnum,
-      default: loginTypeEnum[0],
+      enum: ['email_password', 'github', 'google'],
+      default: 'email_password',
     },
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
       select: false, // never returned in queries by default
     },
     role: {
       type: String,
-      enum: loginRoleEnum,
-      default: loginRoleEnum[0],
+      enum: ['user', 'admin', 'superadmin'],
+      default: 'user',
     },
-    status: {
-      type: String,
-      enum: loginStatusEnum,
-      default: loginStatusEnum[0],
+    isActive: {
+      type: Boolean,
+      default: true,
     },
-    favorite: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
-    phoneNumber: {
-      type: String,
-      trim: true,
-    },
+    phone: Number,
     isEmailVerified: { type: Boolean, default: false },
     avatar: { type: String, default: 'https://avatar.iran.liara.run/public' }, // cloudinary url
     refreshToken: String,
@@ -65,7 +49,7 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-userSchema.index({ email: 'text', createdAt: -1 });
+userSchema.index({ email: 1, createdAt: -1 });
 
 userSchema.plugin(mongoosePaginate);
 
