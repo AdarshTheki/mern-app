@@ -12,27 +12,13 @@ Wishlist Functions
   *  getWishlist(userId)
 */
 
-const selectedProduct = {
-  _id: 1,
-  title: 1,
-  category: 1,
-  brand: 1,
-  status: 1,
-  thumbnail: 1,
-  price: 1,
-  rating: 1,
-};
-
 // @desc    Get user's cart
 // @route   GET /api/v1/cart
 // @access  Private
-export const getCart = asyncHandler(async (req, res) => {
-  const createdBy = req.user._id;
-
-  const carts = await Cart.findOne({ createdBy }).populate({
-    path: 'items.productId',
-    select: Object.keys(selectedProduct).join(' '),
-  });
+const getCart = asyncHandler(async (req, res) => {
+  const carts = await Cart.findOne({ userId: req.user._id }).populate(
+    'items.productId'
+  );
 
   return res
     .status(200)
@@ -42,18 +28,18 @@ export const getCart = asyncHandler(async (req, res) => {
 // @desc    Add item to cart
 // @route   POST /api/v1/cart
 // @access  Private
-export const addToCart = asyncHandler(async (req, res) => {
-  const createdBy = req.user._id;
+const addToCart = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
   const { productId, quantity } = req.body;
 
   if (!isValidObjectId(productId)) {
     throw new ApiError(400, 'Invalid product ID');
   }
 
-  let cart = await Cart.findOne({ createdBy });
+  let cart = await Cart.findOne({ userId });
 
   if (!cart) {
-    cart = new Cart({ createdBy, items: [{ productId, quantity }] });
+    cart = new Cart({ userId, items: [{ productId, quantity }] });
   } else {
     const itemIndex = cart.items.findIndex(
       (item) => item.productId.toString() === productId
@@ -68,21 +54,23 @@ export const addToCart = asyncHandler(async (req, res) => {
 
   await cart.save();
 
-  return res.status(201).json(cart);
+  return res
+    .status(201)
+    .json(new ApiResponse(201, cart.items, 'Item added to cart successfully'));
 });
 
 // @desc    Remove item from cart
 // @route   DELETE /api/v1/cart/:id
 // @access  Private
-export const removeFromCart = asyncHandler(async (req, res) => {
-  const createdBy = req.user._id;
+const removeFromCart = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
   const { id } = req.params;
 
   if (!isValidObjectId(id)) {
     throw new ApiError(400, 'Invalid product ID');
   }
 
-  const cart = await Cart.findOne({ createdBy });
+  const cart = await Cart.findOne({ userId });
 
   if (!cart) {
     throw new ApiError(404, 'Cart not found');
@@ -102,15 +90,15 @@ export const removeFromCart = asyncHandler(async (req, res) => {
 // @desc    Update item quantity in cart
 // @route   PUT /api/v1/cart
 // @access  Private
-export const updateCartItemQuantity = asyncHandler(async (req, res) => {
-  const createdBy = req.user._id;
+const updateCartItemQuantity = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
   const { quantity, productId } = req.body;
 
   if (!isValidObjectId(productId)) {
     throw new ApiError(400, 'Invalid product ID');
   }
 
-  const cart = await Cart.findOne({ createdBy });
+  const cart = await Cart.findOne({ userId });
 
   if (!cart) {
     throw new ApiError(404, 'Cart not found');
@@ -132,10 +120,10 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
 // @desc    Clear user's cart
 // @route   DELETE /api/v1/cart
 // @access  Private
-export const clearCart = asyncHandler(async (req, res) => {
-  const createdBy = req?.user?._id;
+const clearCart = asyncHandler(async (req, res) => {
+  const userId = req?.user?._id;
 
-  const cart = await Cart.findOneAndDelete({ createdBy });
+  const cart = await Cart.findOneAndDelete({ userId });
 
   if (!cart) {
     throw new ApiError(404, 'Cart not found');
@@ -145,3 +133,11 @@ export const clearCart = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, 'Cart cleared successfully'));
 });
+
+export {
+  getCart,
+  addToCart,
+  removeFromCart,
+  updateCartItemQuantity,
+  clearCart,
+};
