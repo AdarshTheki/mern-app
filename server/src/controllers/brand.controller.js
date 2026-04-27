@@ -13,39 +13,15 @@ import {
 // @route   GET /api/v1/brands
 // @access  Public
 export const getAllBrands = asyncHandler(async (req, res) => {
-  const {
-    page = 1,
-    limit = 10,
-    sort = 'title',
-    order = 'asc',
-    title = '',
-    select = '',
-  } = req.query;
+  const { page = 1, limit = 10, sort = '-name', name = '' } = req.query;
 
-  const options = {
-    page,
-    limit,
-    sort: { [sort]: order === 'asc' ? 1 : -1 },
-    select: select
-      ? select.split(',').join(' ')
-      : 'title status thumbnail createdBy',
-  };
+  const query = { name: { $regex: name, $options: 'i' }, isActive: true };
 
-  const query = title ? { title: { $regex: title, $options: 'i' } } : {};
+  const brands = await Brand.paginate(query, { page, limit, sort });
 
-  const brands = await Brand.paginate(query, options);
-
-  return res.status(200).json(brands);
-});
-
-// @desc    Get brand list
-// @route   GET /api/v1/brands/list
-// @access  Public
-export const getBrandList = asyncHandler(async (req, res) => {
-  const brands = await Brand.find().distinct('title');
   return res
     .status(200)
-    .json(new ApiResponse(200, brands, 'Brand list retrieved successfully'));
+    .json(new ApiResponse(200, brands, 'Brands retrieved successfully'));
 });
 
 // @desc    Get brand by ID
@@ -72,20 +48,23 @@ export const getBrandById = asyncHandler(async (req, res) => {
 // @access  Admin
 export const createBrand = asyncHandler(async (req, res) => {
   const filePath = req?.file?.path;
-  const { title, status, description } = req.body;
+  const { name, description } = req.body;
 
-  if (!title || !filePath || !status || !description) {
-    throw new ApiError(400, 'All fields are required');
+  let fields = [];
+  if (!name) fields.push('name');
+  if (!description) fields.push('description');
+  if (!filePath) fields.push('thumbnail');
+
+  if (fields.length > 0) {
+    throw new ApiError(400, `${fields.join(', ')} are required`);
   }
 
   const thumbnail = await uploadOnCloudinary(filePath);
 
   const brand = await Brand.create({
-    title,
-    status,
+    name,
     thumbnail,
     description,
-    createdBy: req.user._id,
   });
 
   return res
@@ -102,7 +81,7 @@ export const updateBrand = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Invalid brand ID');
   }
 
-  const { title, status, description } = req.body;
+  const { name, description } = req.body;
   const filePath = req?.file?.path;
 
   const brand = await Brand.findById(id);
@@ -116,8 +95,7 @@ export const updateBrand = asyncHandler(async (req, res) => {
     await deleteOnCloudinary(extractPublicId(brand.thumbnail));
   }
 
-  brand.title = title || brand.title;
-  brand.status = status || brand.status;
+  brand.name = name || brand.name;
   brand.description = description || brand.description;
   brand.thumbnail = thumbnail || brand.thumbnail;
 
@@ -137,13 +115,14 @@ export const deleteBrand = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Invalid brand ID');
   }
 
-  const brand = await Brand.findByIdAndDelete(id);
+  const brand = await Brand.findByIdAndUpdate(
+    id,
+    { isActive: false },
+    { new: true }
+  );
+
   if (!brand) {
     throw new ApiError(404, 'Brand not found');
-  }
-
-  if (brand.thumbnail) {
-    await deleteOnCloudinary(extractPublicId(brand.thumbnail));
   }
 
   return res

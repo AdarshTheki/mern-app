@@ -1,14 +1,14 @@
 import { Router } from 'express';
 
-import { upload } from '../middlewares/multer.middleware.js';
+import { uploadImage } from '../middlewares/multer.middleware.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import {
-  createCategory,
-  deleteCategory,
   getAllCategories,
   getCategoryById,
-  getCategoryList,
+  createCategory,
   updateCategory,
+  deleteCategory,
+  getCategoryTree,
 } from '../controllers/category.controller.js';
 
 const router = Router();
@@ -17,17 +17,19 @@ router
   .route('/')
   .get(getAllCategories)
   .post(
-    upload.single('thumbnail'),
+    uploadImage.single('thumbnail'),
     verifyJWT(['admin', 'seller']),
     createCategory
   );
-router.get('/list', getCategoryList);
+
+router.route('/tree').get(getCategoryTree);
+
 router
   .route('/:id')
   .get(getCategoryById)
   .patch(
     verifyJWT(['admin', 'seller']),
-    upload.single('thumbnail'),
+    uploadImage.single('thumbnail'),
     updateCategory
   )
   .delete(verifyJWT(['admin']), deleteCategory);

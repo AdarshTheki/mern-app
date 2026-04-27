@@ -17,15 +17,15 @@ router.get('/api/v1/health', (req, res) => {
 });
 
 // Handle unsupported routes
-router.use((req, res) => {
-  res.status(404).json({
-    statusCode: 404,
-    path: req.url,
-    method: req.method,
-    message: 'API endpoint not found!',
-    success: false,
-  });
-});
+// router.use((req, res) => {
+//   res.status(404).json({
+//     statusCode: 404,
+//     path: req.url,
+//     method: req.method,
+//     message: 'API endpoint not found!',
+//     success: false,
+//   });
+// });
 
 // Global error handler
 router.use((err, req, res, _) => {

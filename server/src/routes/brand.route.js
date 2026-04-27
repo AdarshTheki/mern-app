@@ -7,32 +7,28 @@ import {
   deleteBrand,
   getAllBrands,
   getBrandById,
-  getBrandList,
   updateBrand,
 } from '../controllers/brand.controller.js';
 
 const router = Router();
 
-router.get('/', getAllBrands);
+router
+  .route('/')
+  .get(getAllBrands)
+  .post(
+    verifyJWT(['admin', 'superadmin']),
+    upload.single('thumbnail'),
+    createBrand
+  );
 
-router.post(
-  '/',
-  upload.single('thumbnail'),
-  verifyJWT(['admin', 'seller']),
-  createBrand
-);
-
-router.get('/list', getBrandList);
-
-router.get('/:id', getBrandById);
-
-router.patch(
-  '/:id',
-  verifyJWT(['admin', 'seller']),
-  upload.single('thumbnail'),
-  updateBrand
-);
-
-router.delete('/:id', verifyJWT(['admin', 'seller']), deleteBrand);
+router
+  .route('/:id')
+  .get(getBrandById)
+  .patch(
+    verifyJWT(['admin', 'superadmin']),
+    upload.single('thumbnail'),
+    updateBrand
+  )
+  .delete(verifyJWT(['admin', 'superadmin']), deleteBrand);
 
 export default router;

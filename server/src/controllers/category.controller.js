@@ -48,8 +48,13 @@ const createCategory = asyncHandler(async (req, res) => {
   const filePath = req?.file?.path;
   const { name, description, depth, path } = req.body;
 
-  if (!name || !filePath || !description) {
-    throw new ApiError(400, 'All fields are required');
+  let fields = [];
+  if (!name) fields.push('name');
+  if (!description) fields.push('description');
+  if (!filePath) fields.push('thumbnail');
+
+  if (fields.length > 0) {
+    throw new ApiError(400, `${fields.join(', ')} are required`);
   }
 
   const thumbnail = await uploadOnCloudinary(filePath);
@@ -129,10 +134,30 @@ const deleteCategory = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, category, 'Category deleted successfully'));
 });
 
+const getCategoryTree = asyncHandler(async (req, res) => {
+  const categories = await Category.find({ isActive: true }).lean();
+  const categoryMap = {};
+  categories.forEach(
+    (cat) => (categoryMap[cat._id] = { ...cat, children: [] })
+  );
+  const tree = [];
+  categories.forEach((cat) => {
+    if (cat.parentId) {
+      categoryMap[cat.parentId]?.children.push(categoryMap[cat._id]);
+    } else {
+      tree.push(categoryMap[cat._id]);
+    }
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, tree, 'Category tree retrieved successfully'));
+});
+
 export {
   getAllCategories,
   getCategoryById,
   createCategory,
   updateCategory,
   deleteCategory,
+  getCategoryTree,
 };
