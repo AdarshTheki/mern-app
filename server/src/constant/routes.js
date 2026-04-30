@@ -1,15 +1,39 @@
-import userRoute from '../routes/user.route.js';
-import productRoute from '../routes/product.route.js';
-import brandRoute from '../routes/brand.route.js';
-import healthRoute from '../routes/health.route.js';
-import wishlistRoute from '../routes/wishlist.route.js';
-import cartRoute from '../routes/cart.route.js';
+import { accountDetailsRouter } from '../routes/accountDetail.route.js';
+import { addressRouter } from '../routes/address.route.js';
+import { analyticRouter } from '../routes/analytic.route.js';
+import { brandRouter } from '../routes/brand.route.js';
+import { cartRouter } from '../routes/cart.route.js';
+import { categoryRouter } from '../routes/category.route.js';
+import { deliveryRouter } from '../routes/delivery.route.js';
+import { healthRouter } from '../routes/health.route.js';
+import { inventoryLogsRouter } from '../routes/inventorylog.route.js';
+import { notificationRouter } from '../routes/notification.route.js';
+import { orderRouter } from '../routes/order.route.js';
+import { paymentRouter } from '../routes/payment.route.js';
+import { productRouter } from '../routes/product.route.js';
+import { reviewRouter } from '../routes/review.route.js';
+import { userRouter } from '../routes/user.route.js';
+import { vendorRouter } from '../routes/vendor.route.js';
+import { vendorEarningRouter } from '../routes/vendorEarning.route.js';
+import { wishlistRouter } from '../routes/wishlist.route.js';
 
 export const routes = [
-  { path: '/api/v1/user', route: userRoute },
-  { path: '/api/v1/product', route: productRoute },
-  { path: '/api/v1/brand', route: brandRoute },
-  { path: '/api/v1/wishlist', route: wishlistRoute },
-  { path: '/api/v1/cart', route: cartRoute },
-  { path: '/', route: healthRoute },
+  { path: '/api/v1/account-detail', route: accountDetailsRouter },
+  { path: '/api/v1/address', route: addressRouter },
+  { path: '/api/v1/analytic', route: analyticRouter },
+  { path: '/api/v1/brand', route: brandRouter },
+  { path: '/api/v1/cart', route: cartRouter },
+  { path: '/api/v1/category', route: categoryRouter },
+  { path: '/api/v1/delivery', route: deliveryRouter },
+  { path: '/api/v1/health', route: healthRouter },
+  { path: '/api/v1/inventory', route: inventoryLogsRouter },
+  { path: '/api/v1/notification', route: notificationRouter },
+  { path: '/api/v1/order', route: orderRouter },
+  { path: '/api/v1/payment', route: paymentRouter },
+  { path: '/api/v1/product', route: productRouter },
+  { path: '/api/v1/review', route: reviewRouter },
+  { path: '/api/v1/user', route: userRouter },
+  { path: '/api/v1/vendor', route: vendorRouter },
+  { path: '/api/v1/vendor-earning', route: vendorEarningRouter },
+  { path: '/api/v1/wishlist', route: wishlistRouter },
 ];

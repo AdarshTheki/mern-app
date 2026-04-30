@@ -71,4 +71,4 @@ router.get('/', verifyJWT(), getCurrentUser);
 router.delete('/', verifyJWT(), deactivateAccount);
 router.patch('/', verifyJWT(), upload.single('avatar'), updateUserProfile);
 
-export default router;
+export { router as userRouter };

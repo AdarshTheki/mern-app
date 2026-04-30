@@ -34,4 +34,4 @@ router
   )
   .delete(verifyJWT(['admin']), deleteCategory);
 
-export default router;
+export { router as categoryRouter };

@@ -1,20 +1,31 @@
-import express from 'express';
-import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { Router } from 'express';
 import {
+  cancelOrder,
+  createOrder,
   getAllOrders,
-  getUserOrders,
-  stripeCheckout,
+  getMyOrders,
+  getOrderById,
+  getOrderItemsByOrder,
   updateOrderStatus,
+  getOrderStatusLogs,
 } from '../controllers/order.controller.js';
 
-const router = express.Router();
+import { verifyJWT } from '../middlewares/auth.middleware.js';
 
-router.route('/').get(verifyJWT(), getAllOrders);
+const router = Router();
 
-router.patch('/:orderId/status', verifyJWT(['admin']), updateOrderStatus);
+// orders
+router.post('/', verifyJWT(), createOrder);
+router.get('/my-orders', verifyJWT(), getMyOrders);
+router.get('/:id', verifyJWT(), getOrderById);
+router.put('/:id/cancel', verifyJWT(), cancelOrder);
+router.get('', verifyJWT(['admin']), getAllOrders);
+router.put('/:id/status', verifyJWT(['admin']), updateOrderStatus);
 
-router.get('/user', verifyJWT(), getUserOrders);
+// order items
+router.get('/:orderId/items', verifyJWT(), getOrderItemsByOrder);
 
-router.post('/stripe-checkout', verifyJWT(), stripeCheckout);
+// order status logs
+router.get('/:orderId/status-logs', verifyJWT(), getOrderStatusLogs);
 
-export default router;
+export { router as orderRouter };

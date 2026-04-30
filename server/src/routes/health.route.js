@@ -48,4 +48,4 @@ router.use((err, req, res, _) => {
   });
 });
 
-export default router;
+export { router as healthRouter };

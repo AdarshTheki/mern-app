@@ -35,4 +35,4 @@ router
 
 router.route('/vendor/:vendorId').get(getProductsByVendor);
 
-export default router;
+export { router as productRouter };

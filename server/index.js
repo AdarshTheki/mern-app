@@ -1,4 +1,4 @@
-import server from './src/app.js';
+import { server } from './src/app.js';
 import { logger } from './src/middlewares/logger.middleware.js';
 import { connectDB } from './src/config/connectDB.js';
 

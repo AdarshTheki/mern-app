@@ -1,18 +1,19 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import {
-  createAddress,
+  addAddress,
   deleteAddress,
-  getAddress,
-  getUserAddresses,
+  getMyAddresses,
+  setDefaultAddress,
   updateAddress,
 } from '../controllers/address.controller.js';
 
 const router = Router();
 
-router.use(verifyJWT());
+router.get('/', verifyJWT(), getMyAddresses);
+router.post('/', verifyJWT(), addAddress);
+router.patch('/:id', verifyJWT(), updateAddress);
+router.delete('/:id', verifyJWT(), deleteAddress);
+router.put('/:id/set-default', verifyJWT(), setDefaultAddress);
 
-router.route('/').get(getUserAddresses).post(createAddress);
-router.route('/:id').get(getAddress).patch(updateAddress).delete(deleteAddress);
-
-export default router;
+export { router as addressRouter };

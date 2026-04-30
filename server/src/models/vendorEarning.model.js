@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
-const venderEarningSchema = new mongoose.Schema(
+const vendorEarningSchema = new mongoose.Schema(
   {
-    venderId: {
+    vendorId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Vender',
+      ref: 'Vendor',
       required: [true, 'Vendor ID is required'],
     },
     amount: {
@@ -29,11 +29,11 @@ const venderEarningSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-venderEarningSchema.index({ venderId: 1, orderId: 1 });
+vendorEarningSchema.index({ vendorId: 1, orderId: 1 });
 
-venderEarningSchema.plugin(mongoosePaginate);
+vendorEarningSchema.plugin(mongoosePaginate);
 
-export const VenderEarning = mongoose.model(
-  'VenderEarning',
-  venderEarningSchema
+export const VendorEarning = mongoose.model(
+  'VendorEarning',
+  vendorEarningSchema
 );

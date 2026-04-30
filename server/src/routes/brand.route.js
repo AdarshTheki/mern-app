@@ -31,4 +31,4 @@ router
   )
   .delete(verifyJWT(['admin', 'superadmin']), deleteBrand);
 
-export default router;
+export { router as brandRouter };

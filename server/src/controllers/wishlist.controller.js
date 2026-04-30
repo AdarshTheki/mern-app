@@ -1,6 +1,6 @@
 import { ApiError } from '../utils/ApiError.js';
-import { ApiResponse } from '../utils/ApiResponse';
-import { asyncHandler } from '../utils/asyncHandler';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import { Wishlist } from '../models/wishlist.model.js';
 
 const getWishlist = asyncHandler(async (req, res) => {

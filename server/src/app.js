@@ -6,10 +6,10 @@ import http from 'http';
 import passport from 'passport';
 import session from 'express-session';
 import rateLimit from 'express-rate-limit';
-import { Server } from 'socket.io';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import fs from 'fs';
+import path from 'path';
+import { Server } from 'socket.io';
+import { fileURLToPath } from 'url';
 
 import { initializeSocketIO } from './config/socket.js';
 import { morganMiddleware } from './middlewares/logger.middleware.js';
@@ -87,4 +87,4 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../../app/dist/index.html'));
 });
 
-export default server;
+export { server, app };

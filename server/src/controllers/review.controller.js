@@ -1,152 +1,191 @@
-import mongoose from 'mongoose';
 import { Review } from '../models/review.model.js';
-import { ApiError } from '../utils/ApiError.js';
+import { Order } from '../models/order.model.js';
+import { OrderItem } from '../models/orderItem.model.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-// @desc    Get all reviews by product ID
-// @route   GET /api/v1/reviews/:productId
-// @access  Public
-export const getReviewsByProduct = asyncHandler(async (req, res) => {
-  const { productId } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(productId)) {
-    throw new ApiError(400, 'Invalid product ID');
-  }
-
-  const reviews = await Review.find({ productId })
-    .populate('createdBy', 'fullName avatar')
-    .sort({ createdAt: -1 });
-
-  if (!reviews) {
-    throw new ApiError(404, 'Product reviews not found');
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, reviews, 'Reviews retrieved successfully'));
-});
-
-// @desc    Delete a review by review ID
-// @route   DELETE /api/v1/reviews/:reviewId
+// ─────────────────────────────────────────────
+// @desc    Create a review for a purchased product
+// @route   POST /api/reviews
 // @access  Private
-export const deleteReview = asyncHandler(async (req, res) => {
-  const { reviewId } = req.params;
-  const createdBy = req.user._id;
+// ─────────────────────────────────────────────
+const createReview = asyncHandler(async (req, res) => {
+  const { productId, orderId, rating, comment } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(reviewId)) {
-    throw new ApiError(400, 'Invalid review ID');
+  if (!productId || !orderId || !rating) {
+    throw new ApiError(400, 'productId, orderId, and rating are required');
   }
 
-  const review = await Review.findOneAndDelete({ _id: reviewId, createdBy });
-
-  if (!review) {
-    throw new ApiError(404, 'Review not found or unauthorized');
+  if (rating < 1 || rating > 5) {
+    throw new ApiError(400, 'Rating must be between 1 and 5');
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, review, 'Review deleted successfully'));
-});
+  // Verify the order belongs to the user and is delivered
+  const order = await Order.findById(orderId);
+  if (!order) throw new ApiError(404, 'Order not found');
 
-// @desc    Create a new review
-// @route   POST /api/v1/reviews
-// @access  Private
-export const createReview = asyncHandler(async (req, res) => {
-  const { productId, reviewText, rating } = req.body;
-  const createdBy = req.user._id;
-
-  if (!mongoose.Types.ObjectId.isValid(productId)) {
-    throw new ApiError(400, 'Invalid product ID');
+  if (order.userId.toString() !== req.user._id.toString()) {
+    throw new ApiError(
+      403,
+      'You can only review products from your own orders'
+    );
   }
 
-  if (!reviewText || !rating) {
-    throw new ApiError(400, 'Review text and rating are required');
+  if (order.status !== 'delivered') {
+    throw new ApiError(
+      400,
+      'You can only review products after the order is delivered'
+    );
   }
 
-  const newReview = await Review.create({
+  // Verify the product was part of the order
+  const item = await OrderItem.findOne({ orderId, productId });
+  if (!item) {
+    throw new ApiError(400, 'This product was not part of the specified order');
+  }
+
+  // Prevent duplicate reviews
+  const existing = await Review.findOne({
+    userId: req.user._id,
     productId,
-    createdBy,
-    reviewText,
-    rating,
+    orderId,
   });
-
-  if (!newReview) {
-    throw new ApiError(500, 'Review creation failed');
+  if (existing) {
+    throw new ApiError(
+      400,
+      'You have already reviewed this product for this order'
+    );
   }
 
-  const review = await Review.findById(newReview._id).populate(
-    'createdBy',
-    'fullName avatar email'
-  );
+  const review = await Review.create({
+    userId: req.user._id,
+    productId,
+    orderId,
+    rating,
+    comment,
+  });
 
   return res
     .status(201)
-    .json(new ApiResponse(201, review, 'Review added successfully'));
+    .json(new ApiResponse(201, review, 'Review submitted successfully'));
 });
 
-// @desc    Update an existing review
-// @route   PUT /api/v1/reviews/:reviewId
+// ─────────────────────────────────────────────
+// @desc    Update a review
+// @route   PUT /api/reviews/:id
 // @access  Private
-export const updateReview = asyncHandler(async (req, res) => {
-  const { reviewId } = req.params;
-  const { reviewText, rating } = req.body;
+// ─────────────────────────────────────────────
+const updateReview = asyncHandler(async (req, res) => {
+  const { rating, comment } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(reviewId)) {
-    throw new ApiError(400, 'Invalid review ID');
+  const review = await Review.findById(req.params.id);
+  if (!review) throw new ApiError(404, 'Review not found');
+
+  if (review.userId.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'You are not authorized to update this review');
   }
 
-  const review = await Review.findById(reviewId);
-
-  if (!review) {
-    throw new ApiError(404, 'Review not found');
+  if (rating !== undefined) {
+    if (rating < 1 || rating > 5)
+      throw new ApiError(400, 'Rating must be between 1 and 5');
+    review.rating = rating;
   }
 
-  // Update review
-  const oldRating = review.rating;
-  review.reviewText = reviewText || review.reviewText;
-  review.rating = rating || review.rating;
-  await review.save({ validateBeforeSave: false });
+  if (comment !== undefined) review.comment = comment;
+
+  await review.save();
 
   return res
     .status(200)
     .json(new ApiResponse(200, review, 'Review updated successfully'));
 });
 
-// @desc    Like or unlike a review
-// @route   POST /api/v1/reviews/:reviewId/like
+// ─────────────────────────────────────────────
+// @desc    Delete a review
+// @route   DELETE /api/reviews/:id
 // @access  Private
-export const likeReview = asyncHandler(async (req, res) => {
-  const createdBy = req.user._id;
-  const { reviewId } = req.params;
+// ─────────────────────────────────────────────
+const deleteReview = asyncHandler(async (req, res) => {
+  const review = await Review.findById(req.params.id);
+  if (!review) throw new ApiError(404, 'Review not found');
 
-  if (!mongoose.Types.ObjectId.isValid(reviewId)) {
-    throw new ApiError(400, 'Invalid review ID');
+  if (
+    review.userId.toString() !== req.user._id.toString() &&
+    req.user.role !== 'admin'
+  ) {
+    throw new ApiError(403, 'You are not authorized to delete this review');
   }
 
-  const review = await Review.findById(reviewId);
-
-  if (!review) {
-    throw new ApiError(404, 'Review not found');
-  }
-
-  if (!review.likes.includes(createdBy.toString())) {
-    review.likes.push(createdBy.toString());
-  } else {
-    review.likes = review.likes.filter(
-      (id) => id.toString() !== createdBy.toString()
-    );
-  }
-
-  await review.save({ validateBeforeSave: false });
+  await review.deleteOne();
 
   return res
     .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { likes: review.likes.length },
-        `Review ${review.likes.includes(createdBy) ? 'liked' : 'unliked'}`
-      )
-    );
+    .json(new ApiResponse(200, null, 'Review deleted successfully'));
 });
+
+// ─────────────────────────────────────────────
+// @desc    Get all reviews for a product
+// @route   GET /api/reviews/product/:productId
+// @access  Public
+// ─────────────────────────────────────────────
+const getReviewsByProduct = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  const { page = 1, limit = 10 } = req.query;
+
+  const skip = (Number(page) - 1) * Number(limit);
+
+  const [reviews, total] = await Promise.all([
+    Review.find({ productId })
+      .populate('userId', 'name avatar')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
+    Review.countDocuments({ productId }),
+  ]);
+
+  const avgRating =
+    total > 0
+      ? await Review.aggregate([
+          { $match: { productId: reviews[0]?.productId } },
+          { $group: { _id: null, avg: { $avg: '$rating' } } },
+        ]).then((r) => r[0]?.avg?.toFixed(1) || 0)
+      : 0;
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        total,
+        page: Number(page),
+        pages: Math.ceil(total / Number(limit)),
+        avgRating,
+        reviews,
+      },
+      'Product reviews fetched successfully'
+    )
+  );
+});
+
+// ─────────────────────────────────────────────
+// @desc    Get all reviews by logged-in user
+// @route   GET /api/reviews/my-reviews
+// @access  Private
+// ─────────────────────────────────────────────
+const getMyReviews = asyncHandler(async (req, res) => {
+  const reviews = await Review.find({ userId: req.user._id })
+    .populate('productId', 'name image')
+    .sort({ createdAt: -1 });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, reviews, 'Your reviews fetched successfully'));
+});
+
+export {
+  createReview,
+  updateReview,
+  deleteReview,
+  getReviewsByProduct,
+  getMyReviews,
+};

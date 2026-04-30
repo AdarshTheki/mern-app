@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
-const venderSchema = new mongoose.Schema(
+const vendorSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -24,8 +24,8 @@ const venderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-venderSchema.index({ userId: 1 });
+vendorSchema.index({ userId: 1 });
 
-venderSchema.plugin(mongoosePaginate);
+vendorSchema.plugin(mongoosePaginate);
 
-export const Vender = mongoose.model('Vender', venderSchema);
+export const Vendor = mongoose.model('Vendor', vendorSchema);

@@ -14,4 +14,4 @@ router.route('/').post(verifyJWT(), addToWishlist);
 router.route('/').delete(verifyJWT(), removeFromWishlist);
 router.route('/clear').delete(verifyJWT(), clearWishlist);
 
-export default router;
+export { router as wishlistRouter };
